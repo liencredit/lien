@@ -25,6 +25,7 @@ const baseConfig: Config = {
   seed: false,
   apiKey: null,
   webhooks: [],
+  databaseUrl: null,
   supabase: null,
   rateLimitPerMin: 0,
   seedRealCount: 0,

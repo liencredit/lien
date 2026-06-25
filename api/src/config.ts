@@ -22,6 +22,8 @@ export interface Config {
   apiKey: string | null;
   /** Webhook subscribers (url + signing secret). Empty → webhooks disabled. */
   webhooks: Array<{ url: string; secret: string }>;
+  /** Postgres connection string. When set, the Store is Postgres-backed (durable). */
+  databaseUrl: string | null;
   /** Supabase storage. When both set, the Store is Supabase-backed; else in-memory. */
   supabase: { url: string; serviceKey: string } | null;
   /** Max requests per IP per minute. 0 disables rate limiting. */
@@ -69,6 +71,7 @@ export function loadConfig(): Config {
     seed: readBool(process.env.LIEN_SEED, true),
     apiKey: process.env.LIEN_API_KEY ?? null,
     webhooks: readWebhooks(),
+    databaseUrl: process.env.DATABASE_URL ?? null,
     supabase: readSupabase(),
     rateLimitPerMin: Number(process.env.LIEN_RATE_LIMIT ?? 120),
     seedRealCount: Number(process.env.LIEN_SEED_REAL ?? 0),

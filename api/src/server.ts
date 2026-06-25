@@ -54,8 +54,11 @@ export async function buildServer(config: Config): Promise<FastifyInstance> {
     });
   }
 
-  const store = createStore({ supabase: config.supabase });
-  app.log.info(`storage: ${config.supabase ? "supabase" : "in-memory"}`);
+  const { store, backend } = await createStore({
+    databaseUrl: config.databaseUrl,
+    supabase: config.supabase,
+  });
+  app.log.info(`storage: ${backend}`);
   const reader = new RegistryReader(new GraphQLClient({ url: config.graphqlUrl }));
   const webhooks = new WebhookDispatcher(config.webhooks, new HttpWebhookTransport(), {
     info: (m) => app.log.info(m),
