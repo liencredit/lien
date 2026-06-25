@@ -130,7 +130,20 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
       startingAfter: q.data.starting_after,
     };
     const page = await store.listScores(params);
-    return serializeList(page.data.map(serializeCreditScore), page.hasMore, page.nextCursor);
+    // Enrich each row with the agent's display identity so the registry can show
+    // names/avatars instead of bare ids. Additive fields; clients ignore unknowns.
+    const data = await Promise.all(
+      page.data.map(async (s) => {
+        const agent = await store.getAgent(s.agentId);
+        return {
+          ...serializeCreditScore(s),
+          name: agent?.name ?? null,
+          image: agent?.image ?? null,
+          synthetic: agent?.synthetic ?? false,
+        };
+      }),
+    );
+    return serializeList(data, page.hasMore, page.nextCursor);
   });
 
   // POST /v1/settlements (idempotent)

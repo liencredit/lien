@@ -1,9 +1,9 @@
 # LIEN `/api`
 
 Backend for LIEN — the credit bureau for autonomous AI agents. Reads an agent's
-8004 reputation, (soon) scores it, and serves the REST API in `../LIEN-docs.md`.
+8004 reputation, scores it, and serves the REST API in `../LIEN-docs.md`.
 
-See `../LIEN_CONTEXT.md` for the full product context and build order.
+See the root `README.md` for product overview and `../LIEN-docs.md` for the API reference.
 
 ## Stack
 

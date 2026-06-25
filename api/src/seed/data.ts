@@ -13,8 +13,8 @@ const DAY = 86_400_000;
 
 // Deterministic synthetic agents spanning the band/status spectrum so the
 // registry and profile pages look alive for the demo. These are NOT real
-// on-chain agents — every record is flagged `synthetic: true`. Per LIEN_CONTEXT
-// §11, never present these as real live metrics in production copy.
+// on-chain agents — every record is flagged `synthetic: true`. Never present
+// these as real live metrics in production copy.
 
 interface SeedProfile {
   id: string;
