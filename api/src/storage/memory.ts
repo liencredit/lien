@@ -20,6 +20,7 @@ export class MemoryStore implements Store {
   private settlements = new Map<string, SettlementRecord>();
   private settlementsByAgent = new Map<string, string[]>();
   private idempotency = new Map<string, IdempotencyRecord>();
+  private aliases = new Map<string, string>(); // wallet -> canonical agentId
 
   async upsertAgent(agent: AgentRecord): Promise<void> {
     this.agents.set(agent.agentId, agent);
@@ -67,5 +68,17 @@ export class MemoryStore implements Store {
 
   async putIdempotency(rec: IdempotencyRecord): Promise<void> {
     this.idempotency.set(rec.key, rec);
+  }
+
+  async putAlias(wallet: string, agentId: string): Promise<void> {
+    this.aliases.set(wallet, agentId);
+  }
+
+  async getAlias(wallet: string): Promise<string | null> {
+    return this.aliases.get(wallet) ?? null;
+  }
+
+  async listAliases(agentId: string): Promise<string[]> {
+    return [...this.aliases.entries()].filter(([, a]) => a === agentId).map(([w]) => w);
   }
 }

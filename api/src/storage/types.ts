@@ -82,4 +82,12 @@ export interface Store {
   // idempotency
   getIdempotency(key: string): Promise<IdempotencyRecord | null>;
   putIdempotency(rec: IdempotencyRecord): Promise<void>;
+
+  // wallet ↔ 8004 aliases (signed linking)
+  /** Link a payment wallet to a canonical (8004) agent id. */
+  putAlias(wallet: string, agentId: string): Promise<void>;
+  /** Resolve a wallet to its canonical agent id, or null if unlinked. */
+  getAlias(wallet: string): Promise<string | null>;
+  /** All wallets linked to a canonical agent id. */
+  listAliases(agentId: string): Promise<string[]>;
 }

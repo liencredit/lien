@@ -125,6 +125,24 @@ export class Lien {
     });
   }
 
+  /**
+   * Link a payment wallet to an 8004 agent so they share one credit file.
+   * `POST /agents/:agent_id/link`. Both the wallet and the 8004 owner must sign
+   * the canonical message `lien:link:v1:<agent_id>:<wallet>` (ed25519, base58).
+   */
+  link(
+    agentId: string,
+    opts: { wallet: string; walletSignature: string; ownerSignature: string },
+  ): Promise<{ object: "link"; wallet: string; agent_id: string; score: CreditScore | null }> {
+    return this.request("POST", `/agents/${encodeURIComponent(agentId)}/link`, {
+      body: {
+        wallet: opts.wallet,
+        wallet_signature: opts.walletSignature,
+        owner_signature: opts.ownerSignature,
+      },
+    });
+  }
+
   private async request<T>(
     method: string,
     path: string,

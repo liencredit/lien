@@ -57,6 +57,12 @@ CREATE TABLE IF NOT EXISTS idempotency_keys (
   request_hash  text NOT NULL,
   settlement_id text NOT NULL
 );
+CREATE TABLE IF NOT EXISTS aliases (
+  wallet     text PRIMARY KEY,
+  agent_id   text NOT NULL,
+  linked_at  timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS aliases_agent_idx ON aliases (agent_id);
 `;
 
 interface ScoreRow {
@@ -251,6 +257,30 @@ export class PostgresStore implements Store {
        ON CONFLICT (key) DO NOTHING`,
       [rec.key, rec.requestHash, rec.settlementId],
     );
+  }
+
+  async putAlias(wallet: string, agentId: string): Promise<void> {
+    await this.pool.query(
+      `INSERT INTO aliases (wallet, agent_id) VALUES ($1,$2)
+       ON CONFLICT (wallet) DO UPDATE SET agent_id=EXCLUDED.agent_id, linked_at=now()`,
+      [wallet, agentId],
+    );
+  }
+
+  async getAlias(wallet: string): Promise<string | null> {
+    const { rows } = await this.pool.query<{ agent_id: string }>(
+      `SELECT agent_id FROM aliases WHERE wallet=$1 LIMIT 1`,
+      [wallet],
+    );
+    return rows[0]?.agent_id ?? null;
+  }
+
+  async listAliases(agentId: string): Promise<string[]> {
+    const { rows } = await this.pool.query<{ wallet: string }>(
+      `SELECT wallet FROM aliases WHERE agent_id=$1`,
+      [agentId],
+    );
+    return rows.map((r) => r.wallet);
   }
 
   private toSettlement(r: SettlementRow): SettlementRecord {

@@ -289,6 +289,28 @@ export class SupabaseStore implements Store {
       body: JSON.stringify({ key: rec.key, request_hash: rec.requestHash, settlement_id: rec.settlementId }),
     });
   }
+
+  async putAlias(wallet: string, agentId: string): Promise<void> {
+    await this.req(`/aliases`, {
+      method: "POST",
+      headers: { Prefer: "resolution=merge-duplicates,return=minimal" },
+      body: JSON.stringify({ wallet, agent_id: agentId }),
+    });
+  }
+
+  async getAlias(wallet: string): Promise<string | null> {
+    const rows = await this.req<Array<{ agent_id: string }>>(
+      `/aliases?wallet=eq.${enc(wallet)}&select=agent_id&limit=1`,
+    );
+    return rows[0]?.agent_id ?? null;
+  }
+
+  async listAliases(agentId: string): Promise<string[]> {
+    const rows = await this.req<Array<{ wallet: string }>>(
+      `/aliases?agent_id=eq.${enc(agentId)}&select=wallet`,
+    );
+    return rows.map((r) => r.wallet);
+  }
 }
 
 function enc(v: string): string {

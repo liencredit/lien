@@ -5,6 +5,7 @@ import type { Config } from "../config.js";
 import type { RegistryReader } from "../registry/reader.js";
 import type { AttestationWriter } from "../service/attestation.js";
 import { validateFeedbackAuth } from "../service/attestation.js";
+import { validateLink } from "../service/linking.js";
 import type { ScoringService } from "../service/scoring-service.js";
 import { buildEvent, type WebhookDispatcher } from "../service/webhooks.js";
 import type {
@@ -50,6 +51,12 @@ const settlementBody = z.object({
   counterparty: z.string().optional(),
 });
 
+const linkBody = z.object({
+  wallet: z.string().min(1),
+  wallet_signature: z.string().min(1),
+  owner_signature: z.string().min(1),
+});
+
 /**
  * Resolve a stored score, computing+persisting it on demand if we've never
  * scored this agent (and it isn't a seeded synthetic). Returns null if the
@@ -59,9 +66,11 @@ async function getOrComputeScore(
   deps: RouteDeps,
   agentId: string,
 ): Promise<ScoreRecord | null> {
-  const existing = await deps.store.getScore(agentId);
+  // A linked wallet shares its canonical 8004 file.
+  const canonical = (await deps.store.getAlias(agentId)) ?? agentId;
+  const existing = await deps.store.getScore(canonical);
   if (existing) return existing;
-  return deps.scoring.refreshAgent(agentId);
+  return deps.scoring.refreshAgent(canonical);
 }
 
 export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
@@ -98,10 +107,12 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
     const score = await getOrComputeScore(deps, p.data.agent_id);
     if (!score) return sendError(reply, "agent_not_registered", "No 8004 identity and no settlement history for this agent", "agent_id");
 
-    const agentRecord = await store.getAgent(p.data.agent_id);
-    const settlements = await store.listSettlementsByAgent(p.data.agent_id, 50);
+    // The score's agent_id is canonical (a linked wallet resolves to its 8004 file).
+    const canonical = score.agentId;
+    const agentRecord = await store.getAgent(canonical);
+    const settlements = await scoring.collectLedger(canonical, 50);
     // Synthetic agents have no live 8004 identity to resolve.
-    const resolved = agentRecord?.synthetic ? null : await reader.resolveAgent(p.data.agent_id).catch(() => null);
+    const resolved = agentRecord?.synthetic ? null : await reader.resolveAgent(canonical).catch(() => null);
     const identity = identityFromAgent(resolved, agentRecord?.name ?? null, agentRecord?.image ?? null);
 
     return serializeReport(score, identity, settlements);
@@ -195,6 +206,42 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
       return serializeCreditScore(updated);
     }
     return serializeCreditScore(score);
+  });
+
+  // POST /v1/agents/:agent_id/link — link a payment wallet to this agent's 8004
+  // identity so they share one credit file. Requires signatures from BOTH the
+  // wallet (proves control) and the 8004 owner (consents to absorb it), preventing
+  // score impersonation and history theft. agent_id must be a real 8004 account.
+  app.post("/v1/agents/:agent_id/link", async (req, reply) => {
+    const p = agentParams.safeParse(req.params);
+    if (!p.success) return sendError(reply, "invalid_request", "agent_id is required", "agent_id");
+    const b = linkBody.safeParse(req.body);
+    if (!b.success) return sendError(reply, "invalid_request", b.error.issues[0]?.message ?? "invalid body");
+
+    const agent = await reader.resolveAgent(p.data.agent_id).catch(() => null);
+    if (!agent) return sendError(reply, "agent_not_registered", "agent_id must be a registered 8004 agent", "agent_id");
+
+    const validation = validateLink({
+      agentId: p.data.agent_id,
+      wallet: b.data.wallet,
+      owner: agent.owner,
+      walletSignature: b.data.wallet_signature,
+      ownerSignature: b.data.owner_signature,
+    });
+    if (!validation.ok) {
+      return sendError(reply, "authorization_required", validation.reason, validation.param);
+    }
+
+    await store.putAlias(b.data.wallet, p.data.agent_id);
+    // Recompute so the wallet's settlements fold into the canonical file.
+    const score = await scoring.refreshAgent(p.data.agent_id).catch(() => null);
+
+    return reply.code(201).send({
+      object: "link",
+      wallet: b.data.wallet,
+      agent_id: p.data.agent_id,
+      score: score ? serializeCreditScore(score) : null,
+    });
   });
 }
 

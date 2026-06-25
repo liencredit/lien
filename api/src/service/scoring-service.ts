@@ -74,11 +74,14 @@ export class ScoringService {
    * have never seen, which has no credit file to score.
    */
   async refreshAgent(agentId: string, now = Date.now()): Promise<ScoreRecord | null> {
-    const agent = await this.reader.resolveAgent(agentId);
-    if (!agent) return this.refreshLedgerOnly(agentId, now);
+    // Resolve linked wallets to their canonical 8004 identity so a wallet and its
+    // 8004 account share one credit file.
+    const canonical = (await this.store.getAlias(agentId)) ?? agentId;
+    const agent = await this.reader.resolveAgent(canonical);
+    if (!agent) return this.refreshLedgerOnly(canonical, now);
 
     const feedback = await this.reader.getFeedback(agent.id, { first: 100, includeRevoked: true });
-    const settlements = await this.store.listSettlementsByAgent(agent.id, 100);
+    const settlements = await this.collectLedger(agent.id, 100);
     const { signal, counterparties } = ledgerFromSettlements(settlements, now);
 
     const input = deriveScoringInput(agent, feedback, {
@@ -117,6 +120,24 @@ export class ScoringService {
   }
 
   /**
+   * Collect an agent's settlements, unioned with those of every wallet linked to
+   * it (signed wallet↔8004 aliases). This is what makes a merged credit file score
+   * over the combined payment history.
+   */
+  async collectLedger(agentId: string, limit: number): Promise<SettlementRecord[]> {
+    const wallets = await this.store.listAliases(agentId);
+    if (wallets.length === 0) return this.store.listSettlementsByAgent(agentId, limit);
+
+    const batches = await Promise.all(
+      [agentId, ...wallets].map((id) => this.store.listSettlementsByAgent(id, limit)),
+    );
+    return batches
+      .flat()
+      .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+      .slice(0, limit);
+  }
+
+  /**
    * Score an agent that has no 8004 identity, purely from its reported
    * settlement ledger (e.g. an x402 payment wallet). Returns null when there is
    * no ledger to score. Seeded synthetic agents are left untouched so a
@@ -126,7 +147,7 @@ export class ScoringService {
     const existingAgent = await this.store.getAgent(agentId);
     if (existingAgent?.synthetic) return this.store.getScore(agentId);
 
-    const settlements = await this.store.listSettlementsByAgent(agentId, 100);
+    const settlements = await this.collectLedger(agentId, 100);
     if (settlements.length === 0) return null;
 
     const { signal, counterparties } = ledgerFromSettlements(settlements, now);

@@ -280,6 +280,30 @@ authorization — see [Identity model](#identity-model). Without it, returns
 
 Returns the updated `credit_score` with `attested: true`.
 
+### Link a wallet to an 8004 agent
+
+```
+POST /agents/:agent_id/link
+```
+
+Links a payment wallet to an 8004 agent so they share one credit file (the
+wallet's settlements fold into the agent's score). `agent_id` must be a registered
+8004 account. To prevent score impersonation and history theft, **both** parties
+must sign the canonical message `lien:link:v1:<agent_id>:<wallet>` (ed25519,
+base58-encoded): the wallet (proving control) and the 8004 owner (consenting to
+absorb it).
+
+| Body field | Type | Required | Description |
+|---|---|---|---|
+| `wallet` | `string` | yes | The payment wallet to link. |
+| `wallet_signature` | `string` | yes | Wallet's base58 signature of the link message. |
+| `owner_signature` | `string` | yes | 8004 owner's base58 signature of the link message. |
+
+Returns a `link` object `{ object, wallet, agent_id, score }`. After linking, a
+read for the wallet resolves to the canonical agent's file. Errors:
+`agent_not_registered` (no such 8004 agent), `authorization_required` (bad
+signature).
+
 ---
 
 ## Webhooks
@@ -342,6 +366,7 @@ const lien = new Lien({
 | `lien.settlements.create(body, { idempotencyKey })` | `Settlement` | Report an outcome. |
 | `lien.x402.authorize(payer)` | `X402Authorization` | Credit decision for an x402 payer (unknown → prepay). |
 | `lien.x402.reportPayment(payment)` | `Settlement` | Report an x402 payment (payer wallet = `agent_id`). |
+| `lien.link(agentId, { wallet, walletSignature, ownerSignature })` | `Link` | Link a wallet to an 8004 agent. |
 | `lien.attest(agentId, { feedbackAuth })` | `CreditScore` | Write attestation. |
 | `Lien.webhooks.constructEvent(body, sig, secret)` | `Event` | Verify + parse a webhook. |
 

@@ -75,6 +75,15 @@ class CapturingStore implements Store {
   putIdempotency(rec: IdempotencyRecord) {
     return this.inner.putIdempotency(rec);
   }
+  putAlias(wallet: string, agentId: string) {
+    return this.inner.putAlias(wallet, agentId);
+  }
+  getAlias(wallet: string) {
+    return this.inner.getAlias(wallet);
+  }
+  listAliases(agentId: string) {
+    return this.inner.listAliases(agentId);
+  }
 }
 
 function num(name: string, fallback: number): number {
