@@ -9,11 +9,13 @@ import type {
   Report,
   Settlement,
   WebhookEvent,
+  X402Authorization,
+  X402Payment,
 } from "./types.js";
 
 const NETWORK_BASE_URLS = {
-  mainnet: "https://api.lien.credit/v1",
-  devnet: "https://api.devnet.lien.credit/v1",
+  mainnet: "https://lien-api-production.up.railway.app/v1",
+  devnet: "https://lien-api-production.up.railway.app/v1",
 } as const;
 
 export interface LienOptions {
@@ -37,6 +39,17 @@ export class Lien {
     create(body: CreateSettlementBody, opts?: { idempotencyKey?: string }): Promise<Settlement>;
   };
 
+  /**
+   * x402 helpers. LIEN scores agents by their payment wallet, so x402 traffic is a
+   * first-class data source — no 8004 registration required.
+   */
+  readonly x402: {
+    /** Decide whether to extend post-paid terms to an x402 payer. Unknown agents → prepay. */
+    authorize(payer: string): Promise<X402Authorization>;
+    /** Report an x402 payment to LIEN as a settlement so it feeds the payer's score. */
+    reportPayment(payment: X402Payment): Promise<Settlement>;
+  };
+
   constructor(opts: LienOptions) {
     if (!opts.apiKey) throw new Error("Lien: apiKey is required");
     this.apiKey = opts.apiKey;
@@ -51,6 +64,36 @@ export class Lien {
           body,
           headers: o?.idempotencyKey ? { "Idempotency-Key": o.idempotencyKey } : undefined,
         }),
+    };
+
+    this.x402 = {
+      authorize: async (payer) => {
+        try {
+          const score = await this.check(payer);
+          const creditworthy = score.status !== "defaulted" && score.limit !== null;
+          return { creditworthy, limit: score.limit, score };
+        } catch (e) {
+          // No LIEN file yet (no 8004 identity and no history) → not creditworthy.
+          if (e instanceof LienError && e.type === "agent_not_registered") {
+            return { creditworthy: false, limit: null, score: null };
+          }
+          throw e;
+        }
+      },
+      reportPayment: (p) => {
+        const tabId = p.tabId ?? `x402_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        return this.settlements.create(
+          {
+            agent_id: p.payer,
+            tab_id: tabId,
+            amount: p.amount,
+            on_time: p.onTime ?? true,
+            counterparty: p.resource,
+            ...(p.tx ? { tx: p.tx } : {}),
+          },
+          { idempotencyKey: tabId },
+        );
+      },
     };
   }
 

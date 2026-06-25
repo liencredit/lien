@@ -80,6 +80,36 @@ export interface FeedbackAuth {
   signature: string;
 }
 
+/** A normalized x402 payment event, ready to report to LIEN as a settlement. */
+export interface X402Payment {
+  /** The paying agent's wallet — becomes the LIEN `agent_id`. */
+  payer: string;
+  /** Amount paid, in minor units (USDC, 6 decimals). */
+  amount: number;
+  /** The resource server / counterparty being paid. Feeds counterparty diversity. */
+  resource: string;
+  /** On-chain settlement signature, if known. */
+  tx?: string;
+  /** The post-paid tab this closes. Defaults to a generated id (also the idempotency key). */
+  tabId?: string;
+  /**
+   * Whether it settled on time. Prepaid x402 is always on time (you don't get the
+   * resource unless you pay), so this defaults to `true`. Post-paid tabs set it
+   * from the actual outcome.
+   */
+  onTime?: boolean;
+}
+
+/** A credit decision for an x402 request, derived from the agent's LIEN standing. */
+export interface X402Authorization {
+  /** Whether to extend post-paid terms. `false` → require prepay. */
+  creditworthy: boolean;
+  /** Recommended credit ceiling, or `null` if not eligible. */
+  limit: Limit | null;
+  /** The full score, or `null` if the agent has no LIEN file yet. */
+  score: CreditScore | null;
+}
+
 export interface WebhookEvent<T = unknown> {
   id: string;
   type:

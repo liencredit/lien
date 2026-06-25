@@ -340,6 +340,8 @@ const lien = new Lien({
 | `lien.report(agentId)` | `Report` | Full report (`GET /report`). |
 | `lien.registry(params?)` | `Page<CreditScore>` | Paginated registry. |
 | `lien.settlements.create(body, { idempotencyKey })` | `Settlement` | Report an outcome. |
+| `lien.x402.authorize(payer)` | `X402Authorization` | Credit decision for an x402 payer (unknown → prepay). |
+| `lien.x402.reportPayment(payment)` | `Settlement` | Report an x402 payment (payer wallet = `agent_id`). |
 | `lien.attest(agentId, { feedbackAuth })` | `CreditScore` | Write attestation. |
 | `Lien.webhooks.constructEvent(body, sig, secret)` | `Event` | Verify + parse a webhook. |
 

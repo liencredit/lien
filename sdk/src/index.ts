@@ -17,4 +17,6 @@ export type {
   SettlementStatus,
   Status,
   WebhookEvent,
+  X402Authorization,
+  X402Payment,
 } from "./types.js";
