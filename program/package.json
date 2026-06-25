@@ -1,0 +1,23 @@
+{
+  "name": "@lien/program",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Anchor program: LIEN per-agent score PDA.",
+  "scripts": {
+    "lint": "prettier --check 'tests/**/*.ts'",
+    "test": "anchor test"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.30.1"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.5",
+    "@types/chai": "^4.3.11",
+    "@types/mocha": "^10.0.6",
+    "chai": "^4.3.10",
+    "mocha": "^10.2.0",
+    "prettier": "^3.2.5",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^5.7.3"
+  }
+}

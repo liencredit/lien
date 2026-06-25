@@ -1,0 +1,31 @@
+{
+  "name": "@lien/api",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "LIEN backend — 8004 reader, scoring engine, and REST API.",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test src/**/*.test.ts",
+    "spike": "tsx scripts/spike.ts",
+    "sync": "tsx scripts/sync.ts",
+    "export:sql": "tsx scripts/export-sql.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^10.1.0",
+    "@fastify/rate-limit": "^10.3.0",
+    "fastify": "^5.2.1",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

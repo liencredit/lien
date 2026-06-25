@@ -1,0 +1,27 @@
+# Render Blueprint for the LIEN API.
+# In Render: New → Blueprint → connect this repo. It picks up this file.
+# Fill the `sync: false` secrets in the dashboard (they are never committed).
+services:
+  - type: web
+    name: lien-api
+    runtime: docker
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    plan: starter
+    autoDeploy: true
+    envVars:
+      - key: LIEN_CLUSTER
+        value: mainnet
+      # Data already lives in Supabase (seeded once); don't re-seed on every boot.
+      - key: LIEN_SEED
+        value: "false"
+      # Supabase project the Lovable frontend reads. Service-role key → server-side
+      # writes (live score recompute). Set both in the dashboard.
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      # Optional: require `Authorization: Bearer <key>` for write endpoints.
+      - key: LIEN_API_KEY
+        sync: false

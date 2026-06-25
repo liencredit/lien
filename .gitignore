@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+target/
+.anchor/
+test-ledger/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*-keypair.json
+id.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
