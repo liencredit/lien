@@ -48,6 +48,39 @@ test("registry status filter works", async () => {
   for (const s of defaulted.data) assert.equal(s.status, "defaulted");
 });
 
+test("excludeSynthetic hides seeded demo agents from the registry", async () => {
+  const store = new MemoryStore();
+  await seedStore(store, FIXED_NOW);
+
+  // A real (non-synthetic) agent + score.
+  await store.upsertAgent({
+    agentId: "agent:real",
+    owner: "owner",
+    paymentWallet: "wallet",
+    name: "Real Agent",
+    image: null,
+    firstSeen: new Date(FIXED_NOW).toISOString(),
+    synthetic: false,
+  });
+  await store.upsertScore({
+    agentId: "agent:real",
+    score: 506,
+    band: "poor",
+    status: "good_standing",
+    limit: null,
+    attested: false,
+    factors: [],
+    updatedAt: new Date(FIXED_NOW).toISOString(),
+  });
+
+  const withSynthetic = await store.listScores({ limit: 100 });
+  const realOnly = await store.listScores({ limit: 100, excludeSynthetic: true });
+
+  assert.ok(withSynthetic.data.length > realOnly.data.length);
+  assert.equal(realOnly.data.length, 1);
+  assert.equal(realOnly.data[0]!.agentId, "agent:real");
+});
+
 test("cursor pagination walks the whole list without gaps or repeats", async () => {
   const store = new MemoryStore();
   await seedStore(store, FIXED_NOW);

@@ -206,13 +206,25 @@ export class PostgresStore implements Store {
   }
 
   async listScores(params: ListScoresParams): Promise<Page<ScoreRecord>> {
-    // Status filtered in SQL; sort/cursor applied in-process so every backend agrees.
-    const { rows } = params.status
-      ? await this.pool.query<ScoreRow>(
-          `SELECT * FROM scores WHERE status=$1 ORDER BY score DESC LIMIT 1000`,
-          [params.status],
-        )
-      : await this.pool.query<ScoreRow>(`SELECT * FROM scores ORDER BY score DESC LIMIT 1000`);
+    // Status/synthetic filtered in SQL; sort/cursor applied in-process so every
+    // backend agrees. LEFT JOIN keeps scores whose agent row is absent.
+    const where: string[] = [];
+    const args: unknown[] = [];
+    if (params.status) {
+      args.push(params.status);
+      where.push(`s.status=$${args.length}`);
+    }
+    if (params.excludeSynthetic) {
+      where.push(`COALESCE(a.synthetic, false) = false`);
+    }
+    const clause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+    const { rows } = await this.pool.query<ScoreRow>(
+      `SELECT s.* FROM scores s
+       LEFT JOIN agents a ON a.agent_id = s.agent_id
+       ${clause}
+       ORDER BY s.score DESC LIMIT 1000`,
+      args,
+    );
     return sortAndPaginate(rows.map(toScoreRecord), params);
   }
 

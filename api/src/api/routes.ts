@@ -40,7 +40,11 @@ const registryQuery = z.object({
   status: z.enum(["good_standing", "on_watch", "defaulted"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
   starting_after: z.string().optional(),
+  // Public registry hides seeded demo agents. Opt in for demos/screenshots.
+  include_synthetic: z.string().optional(),
 });
+
+const isTruthy = (v: string | undefined): boolean => v === "true" || v === "1";
 
 const settlementBody = z.object({
   agent_id: z.string().min(1),
@@ -128,6 +132,7 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
       status: q.data.status,
       limit: q.data.limit,
       startingAfter: q.data.starting_after,
+      excludeSynthetic: !isTruthy(q.data.include_synthetic),
     };
     const page = await store.listScores(params);
     // Enrich each row with the agent's display identity so the registry can show

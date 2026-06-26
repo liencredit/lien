@@ -252,7 +252,15 @@ export class SupabaseStore implements Store {
     // sort/cursor semantics in-process so every backend agrees.
     const filter = params.status ? `&status=eq.${params.status}` : "";
     const rows = await this.req<ScoreRow[]>(`/scores?select=*${filter}&order=score.desc&limit=1000`);
-    return sortAndPaginate(rows.map(fromScoreRow), params);
+    let records = rows.map(fromScoreRow);
+    if (params.excludeSynthetic) {
+      const synth = await this.req<Array<{ agent_id: string }>>(
+        `/agents?synthetic=eq.true&select=agent_id&limit=1000`,
+      );
+      const ids = new Set(synth.map((s) => s.agent_id));
+      records = records.filter((r) => !ids.has(r.agentId));
+    }
+    return sortAndPaginate(records, params);
   }
 
   async insertSettlement(s: SettlementRecord): Promise<void> {

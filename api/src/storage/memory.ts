@@ -39,7 +39,11 @@ export class MemoryStore implements Store {
   }
 
   async listScores(params: ListScoresParams): Promise<Page<ScoreRecord>> {
-    return sortAndPaginate([...this.scores.values()], params);
+    let rows = [...this.scores.values()];
+    if (params.excludeSynthetic) {
+      rows = rows.filter((r) => !this.agents.get(r.agentId)?.synthetic);
+    }
+    return sortAndPaginate(rows, params);
   }
 
   async insertSettlement(s: SettlementRecord): Promise<void> {

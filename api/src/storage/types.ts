@@ -49,6 +49,11 @@ export interface ListScoresParams {
   status?: Status;
   limit?: number; // 1–100
   startingAfter?: string; // cursor = agentId of last item
+  /**
+   * Exclude seeded demo agents. The public registry sets this so synthetic
+   * records never surface as real scored agents. Opt back in for demos.
+   */
+  excludeSynthetic?: boolean;
 }
 
 export interface Page<T> {
