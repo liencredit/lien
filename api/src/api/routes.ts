@@ -15,6 +15,7 @@ import type {
   SettlementStatus,
   Store,
 } from "../storage/types.js";
+import { renderCardPng } from "./card.js";
 import { sendError } from "./errors.js";
 import {
   identityFromAgent,
@@ -120,6 +121,34 @@ export function registerRoutes(app: FastifyInstance, deps: RouteDeps): void {
     const identity = identityFromAgent(resolved, agentRecord?.name ?? null, agentRecord?.image ?? null);
 
     return serializeReport(score, identity, settlements);
+  });
+
+  // GET /v1/agents/:agent_id/card.png — shareable credit certificate (OG image).
+  app.get("/v1/agents/:agent_id/card.png", async (req, reply) => {
+    const p = agentParams.safeParse(req.params);
+    if (!p.success) return sendError(reply, "invalid_request", "agent_id is required", "agent_id");
+
+    const score = await getOrComputeScore(deps, p.data.agent_id);
+    if (!score) return sendError(reply, "agent_not_registered", "No score on file for this agent", "agent_id");
+
+    const canonical = score.agentId;
+    const agentRecord = await store.getAgent(canonical);
+    const resolved = agentRecord?.synthetic ? null : await reader.resolveAgent(canonical).catch(() => null);
+
+    const png = await renderCardPng({
+      agentId: canonical,
+      name: resolved?.registrationFile?.name ?? agentRecord?.name ?? null,
+      score: score.score,
+      band: score.band,
+      status: score.status,
+      limit: score.limit,
+      verified8004: resolved !== null,
+    });
+
+    return reply
+      .type("image/png")
+      .header("Cache-Control", "public, max-age=300, s-maxage=3600")
+      .send(png);
   });
 
   // GET /v1/registry
